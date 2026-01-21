@@ -50,7 +50,7 @@ async def measure_napkin(file: UploadFile = File(...)):
     x, y, w, h = cv2.boundingRect(largest)
 
     # ⚠️ Approx scale (tuning later)
-    PIXEL_TO_CM = 0.026  # approx value
+    PIXEL_TO_CM = 0.12  # approx value
 
     width_cm = round(w * PIXEL_TO_CM, 2)
     height_cm = round(h * PIXEL_TO_CM, 2)
@@ -66,3 +66,33 @@ async def measure_napkin(file: UploadFile = File(...)):
         return {"status": "RETAKE", "reason": "Too bright"}
 
     return {"status": "OK"}
+@app.post("/calibrate")
+async def calibrate(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    np_img = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150)
+
+    contours, _ = cv2.findContours(
+        edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    largest = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest)
+
+    # A4 paper size in cm
+    REAL_WIDTH_CM = 21.0
+    REAL_HEIGHT_CM = 29.7
+
+    pixel_to_cm_w = REAL_WIDTH_CM / w
+    pixel_to_cm_h = REAL_HEIGHT_CM / h
+
+    pixel_to_cm = round((pixel_to_cm_w + pixel_to_cm_h) / 2, 4)
+
+    return {
+        "status": "OK",
+        "pixel_to_cm": pixel_to_cm
+    }
+
