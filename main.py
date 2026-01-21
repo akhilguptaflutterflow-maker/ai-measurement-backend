@@ -50,7 +50,7 @@ async def measure_napkin(file: UploadFile = File(...)):
     x, y, w, h = cv2.boundingRect(largest)
 
     # ⚠️ Approx scale (tuning later)
-    PIXEL_TO_CM = 0.12  # approx value
+    PIXEL_TO_CM = 0.2932  # approx value
 
     width_cm = round(w * PIXEL_TO_CM, 2)
     height_cm = round(h * PIXEL_TO_CM, 2)
