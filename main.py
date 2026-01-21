@@ -22,6 +22,9 @@ async def check_image(file: UploadFile = File(...)):
 
     if brightness < 50:
         return {"status": "RETAKE", "reason": "Too dark"}
+
+import base64
+
 @app.post("/measure-napkin")
 async def measure_napkin(file: UploadFile = File(...)):
     image_bytes = await file.read()
@@ -32,11 +35,8 @@ async def measure_napkin(file: UploadFile = File(...)):
         return {"status": "ERROR", "message": "Invalid image"}
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Edge detection
     edges = cv2.Canny(gray, 50, 150)
 
-    # Find contours
     contours, _ = cv2.findContours(
         edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
@@ -44,28 +44,47 @@ async def measure_napkin(file: UploadFile = File(...)):
     if not contours:
         return {"status": "ERROR", "message": "No object detected"}
 
-    # Largest contour = object
     largest = max(contours, key=cv2.contourArea)
-
     x, y, w, h = cv2.boundingRect(largest)
 
-    # ⚠️ Approx scale (tuning later)
-    PIXEL_TO_CM = 0.2932  # approx value
+    # 👇 YAHAN APNI CALIBRATED VALUE RAKHO
+    PIXEL_TO_CM = 0.12  
 
     width_cm = round(w * PIXEL_TO_CM, 2)
     height_cm = round(h * PIXEL_TO_CM, 2)
+
+    # Draw rectangle
+    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+    # Draw width line
+    cv2.line(img, (x, y + h + 20), (x + w, y + h + 20), (255, 0, 0), 2)
+    cv2.putText(
+        img, f"{width_cm} cm",
+        (x + int(w/3), y + h + 40),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2
+    )
+
+    # Draw height line
+    cv2.line(img, (x - 20, y), (x - 20, y + h), (0, 0, 255), 2)
+    cv2.putText(
+        img, f"{height_cm} cm",
+        (x - 80, y + int(h/2)),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
+    )
+
+    # Encode image to base64
+    _, buffer = cv2.imencode(".jpg", img)
+    img_base64 = base64.b64encode(buffer).decode("utf-8")
 
     return {
         "status": "OK",
         "object": "napkin_or_card",
         "width_cm": width_cm,
-        "height_cm": height_cm
+        "height_cm": height_cm,
+        "processed_image": img_base64
     }
 
-    if brightness > 220:
-        return {"status": "RETAKE", "reason": "Too bright"}
 
-    return {"status": "OK"}
 @app.post("/calibrate")
 async def calibrate(file: UploadFile = File(...)):
     image_bytes = await file.read()
