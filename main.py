@@ -75,6 +75,12 @@ async def measure_napkin(file: UploadFile = File(...)):
     # Encode image to base64
     _, buffer = cv2.imencode(".jpg", img)
     img_base64 = base64.b64encode(buffer).decode("utf-8")
+    if width_cm < 3 or height_cm < 3:
+    return {"status": "RETAKE", "reason": "Object too small or unclear"}
+
+if width_cm > 100 or height_cm > 100:
+    return {"status": "RETAKE", "reason": "Object size not valid"}
+
 
     return {
         "status": "OK",
